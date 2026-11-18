@@ -2,18 +2,17 @@
 const { When, Then } = require('@cucumber/cucumber');
 const assert = require('node:assert/strict');
 
-When('I sort the products by {string}', async function (value) {
-  await this.home.sortBy(value);
+When('I sort the products by {string}', async function (option) {
+  await this.home.sortBy(option);
 });
 
-Then('the product prices are in ascending order', async function () {
-  const prices = await this.home.productPrices();
-  const sorted = [...prices].sort((a, b) => a - b);          // a copy of the list, sorted by the test itself
-  assert.deepEqual(prices, sorted, `Prices are not in ascending order: ${prices.join(', ')}`);
-});
-
-Then('the product names are in alphabetical order', async function () {
-  const names = await this.home.productNames();
-  const sorted = [...names].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }));
-  assert.deepEqual(names, sorted, `Names are not in alphabetical order: ${names.join(', ')}`);
+// {word} catches one word without quotes: "price" or "name", "ascending" or "descending"
+Then('the products are sorted by {word} in {word} order', async function (field, direction) {
+  const values = field === 'price' ? await this.home.productPrices() : await this.home.productNames();
+  const compare = field === 'price'
+    ? (a, b) => a - b
+    : (a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' });
+  const expected = [...values].sort(compare);              // a copy of the list, sorted by the test itself
+  if (direction === 'descending') expected.reverse();
+  assert.deepEqual(values, expected, `The ${field}s are not in ${direction} order: ${values.join(', ')}`);
 });

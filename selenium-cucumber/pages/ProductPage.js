@@ -22,6 +22,28 @@ class ProductPage extends BasePage {
       (await this.text(this.dt('cart-quantity'))) === String(quantity), 'The cart badge did not update');
   }
 
+  async quantity() {
+    return Number(await (await this.find(this.dt('quantity'))).getAttribute('value'));
+  }
+
+  // press + and - like a customer, then wait until the box shows the expected number
+  async changeQuantity(up, down) {
+    const start = await this.quantity();
+    for (let i = 0; i < up; i++) await this.click(this.dt('increase-quantity'));
+    for (let i = 0; i < down; i++) await this.click(this.dt('decrease-quantity'));
+    const expected = start + up - down;
+    await this.waitUntil(async () => (await this.quantity()) === expected,
+      `The quantity box should show ${expected} after ${up} x + and ${down} x -`);
+  }
+
+  // add what the quantity box shows, and wait for the cart badge to show that number
+  async addChosenQuantity() {
+    const quantity = await this.quantity();
+    await this.click(this.dt('add-to-cart'));
+    await this.waitUntil(async () => (await this.isPresent(this.dt('cart-quantity'))) &&
+      (await this.text(this.dt('cart-quantity'))) === String(quantity), 'The cart badge did not update');
+  }
+
   async cartBadge() {
     return this.text(this.dt('cart-quantity'));
   }

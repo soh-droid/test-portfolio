@@ -6,10 +6,14 @@ Feature: Sort the product list
   Background:
     Given I am on the Toolshop home page
 
-  Scenario: Sorting by price from low to high puts the cheapest product first
-    When I sort the products by "price,asc"
-    Then the product prices are in ascending order
+  @regression
+  Scenario Outline: Each sort option puts the list in the order it promises
+    When I sort the products by "<option>"
+    Then the products are sorted by <field> in <direction> order
 
-  Scenario: Sorting by name from A to Z puts the names in alphabetical order
-    When I sort the products by "name,asc"
-    Then the product names are in alphabetical order
+    Examples:
+      | option     | field | direction  |
+      | price,asc  | price | ascending  |
+      | price,desc | price | descending |
+      | name,asc   | name  | ascending  |
+      | name,desc  | name  | descending |

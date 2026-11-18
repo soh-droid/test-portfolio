@@ -5,7 +5,8 @@ Automated acceptance tests for **Toolshop**, the public practice web shop of
 and run in Chrome with **Selenium WebDriver**.
 
 This is a personal learning project. I come from IT support (incident and request handling, tickets, knowledge base
-articles), and I am moving into software testing.
+articles), and I am moving into software testing. The project follows the path a reported problem takes in a
+support team: a ticket that can be reproduced, then an automated test that keeps it from coming back.
 
 [![Selenium + Cucumber tests](https://github.com/soh-droid/test-portfolio/actions/workflows/selenium-cucumber.yml/badge.svg)](https://github.com/soh-droid/test-portfolio/actions/workflows/selenium-cucumber.yml)
 
@@ -14,23 +15,34 @@ articles), and I am moving into software testing.
 | Feature | Scenarios | What they check |
 |---|---|---|
 | [Search](selenium-cucumber/features/search.feature) | 3 | a search shows only matching products; a search with no match says so clearly |
-| [Sort](selenium-cucumber/features/sort.feature) | 2 | price low to high and name A to Z really come out in that order |
-| [Cart](selenium-cucumber/features/cart.feature) | 3 | the product page agrees with the list; 2 items give 2 x the unit price and the right total; removing the only product empties the cart |
+| [Sort](selenium-cucumber/features/sort.feature) | 4 | every sort option (price and name, both directions) really gives that order |
+| [Cart](selenium-cucumber/features/cart.feature) | 4 | the product page agrees with the list; the + and - buttons; 2 items give 2 x the unit price and the right total; removing the only product empties the cart |
+| [Contact form](selenium-cucumber/features/contact.feature) | 4 | negative tests: an empty form and three badly formed e-mail addresses are refused with a clear message (nothing is ever sent) |
 
-8 scenarios, 52 steps, about 15 seconds in headless Chrome.
+15 scenarios, 92 steps, about 20 seconds in headless Chrome. The method (scope, test design, suites, environments,
+exit criteria, results) is in the **[test plan](docs/test-plan.md)**.
+
+## Suites
+
+| Command | Tag | What runs |
+|---|---|---|
+| `npm run test:smoke` | `@smoke` | the most important paths, as a quick check after a change |
+| `npm run test:regression` | `@regression` | everything that protects existing behaviour, before a release |
+| `npx cucumber-js --tags @BUG-001` | `@BUG-nnn` | the scenarios that reproduce one reported bug, to confirm a fix |
 
 ## The same tests find real bugs
 
 Toolshop also exists in a **version with planted bugs** (`with-bugs.practicesoftwaretesting.com`). Run against it
 (`npm run test:with-bugs`), the cart scenarios fail exactly where the authors of the shop documented bugs in
-[their list](https://github.com/testsmith-io/practice-software-testing/blob/main/docs/sprints/sprint5-with-bugs.md):
+[their list](https://github.com/testsmith-io/practice-software-testing/blob/main/docs/sprints/sprint5-with-bugs.md).
+Each one is written up as a bug report and tied to its scenarios by a tag:
 
-| Failing scenario | What the test saw | Documented bug |
-|---|---|---|
-| Adding two items ... | the quantity box stays at 1 after pressing + | #40: plus / minus buttons do not change quantity |
-| Removing the only product ... | the line stays in the cart after pressing delete | #7: delete button is disabled |
+| Bug report | Scenarios (tag) | What the tests saw | Their list |
+|---|---|---|---|
+| [BUG-001](docs/bug-reports/BUG-001-quantity-buttons.md) | 2 (`@BUG-001`) | the quantity box stays at 1 after pressing + or - | #40 |
+| [BUG-002](docs/bug-reports/BUG-002-delete-button.md) | 1 (`@BUG-002`) | the line stays in the cart after pressing delete | #7 |
 
-A test that can never fail proves nothing; these two show that the checks are real.
+A test that can never fail proves nothing; these show that the checks are real.
 
 ## How it is built
 
@@ -40,8 +52,9 @@ selenium-cucumber/
     step_definitions/       the code behind each sentence of the scenarios
     support/world.js        starts Chrome for each scenario and gives every step access to it
     support/hooks.js        opens and closes the browser, adds a screenshot to the report when a scenario fails
-  pages/                    Page Object Model: one class per page of the shop (home, product, cart)
+  pages/                    Page Object Model: one class per page of the shop (home, product, cart, contact)
   cucumber.js               where the scenarios are and which reports to write
+docs/                       test plan and bug reports
 ci/toolshop.override.yml    two changes to Toolshop's Docker setup so it runs on GitHub's machines
 .github/workflows/          the GitHub Actions workflow
 ```
@@ -54,6 +67,7 @@ Choices worth knowing:
   the new sort order), up to 15 seconds.
 - **Page Object Model**: the steps say *what* happens (`this.home.search(term)`), the page classes know *how*
   (which field, which button). When the shop changes a screen, one class changes, not every test.
+- **Data-driven scenarios** (Scenario Outline): one scenario, one row per sort option or per wrong e-mail address.
 - **Money compared in cents**, so 14.15 x 2 is exactly 28.30.
 - **Readable failures**: each assertion says what it expected and what it found; the HTML report holds a screenshot
   of every failed scenario.
@@ -68,6 +82,7 @@ npm ci
 npm test                 # all scenarios, headless
 npm run test:headed      # watch Chrome do it
 npm run test:smoke       # only the scenarios tagged @smoke
+npm run test:regression  # the regression suite
 npm run test:with-bugs   # the same scenarios against the version with planted bugs
 ```
 
@@ -88,4 +103,4 @@ A full run takes about a minute and a half.
 
 ## Tools
 
-Cucumber 13 (JavaScript), Selenium WebDriver 4, Node.js, Chrome, GitHub Actions.
+Cucumber 13 (JavaScript), Selenium WebDriver 4, Node.js, Chrome, Docker, GitHub Actions.

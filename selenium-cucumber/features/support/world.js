@@ -6,6 +6,7 @@ const chrome = require('selenium-webdriver/chrome');
 const { HomePage } = require('../../pages/HomePage');
 const { ProductPage } = require('../../pages/ProductPage');
 const { CartPage } = require('../../pages/CartPage');
+const { ContactPage } = require('../../pages/ContactPage');
 
 // A step may take up to 60 seconds (the shop is a public demo on the internet, it is sometimes slow).
 setDefaultTimeout(60 * 1000);
@@ -27,6 +28,7 @@ class ToolshopWorld extends World {
     this.home = new HomePage(this.driver, this.baseUrl);
     this.product = new ProductPage(this.driver, this.baseUrl);
     this.cart = new CartPage(this.driver, this.baseUrl);
+    this.contact = new ContactPage(this.driver, this.baseUrl);
   }
 
   async closeBrowser() {

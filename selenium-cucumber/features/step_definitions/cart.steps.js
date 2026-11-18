@@ -21,6 +21,14 @@ When('I add {int} items to the cart', async function (quantity) {
   await this.product.addToCart(quantity);
 });
 
+When('I raise the quantity to {int} and lower it by {int}', async function (target, down) {
+  await this.product.changeQuantity(target - 1, down);       // the box starts at 1
+});
+
+When('I add the chosen quantity to the cart', async function () {
+  await this.product.addChosenQuantity();
+});
+
 Then('the product page shows the name {string}', async function (name) {
   assert.equal(await this.product.name(), name);
 });
