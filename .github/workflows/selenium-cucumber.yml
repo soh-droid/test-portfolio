@@ -12,6 +12,8 @@ on:
 env:
   SPRINT: sprint5            # which version of Toolshop the official compose file starts
   DISABLE_LOGGING: "true"
+  # the official compose file, plus our two changes for GitHub's machines (see ci/toolshop.override.yml)
+  COMPOSE_FILE: docker-compose.prod.yml:../ci/toolshop.override.yml
 
 jobs:
   test:
@@ -23,36 +25,37 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Get the Toolshop compose file (official repository)
+      - name: Get the Toolshop compose file and web server settings (official repository)
         uses: actions/checkout@v7
         with:
           repository: testsmith-io/practice-software-testing
           path: toolshop
-          sparse-checkout: docker-compose.prod.yml
+          sparse-checkout: |
+            docker-compose.prod.yml
+            _docker/vhost.conf
           sparse-checkout-cone-mode: false
 
       - name: Start Toolshop in Docker
         working-directory: toolshop
-        run: docker compose -f docker-compose.prod.yml up -d --pull missing
+        run: docker compose up -d --pull missing
 
       - name: Fill the database with its demo data
         working-directory: toolshop
         run: |
-          for i in $(seq 1 30); do docker compose -f docker-compose.prod.yml exec -T laravel-api php artisan migrate:fresh --seed --force && break; echo "Database not ready ($i)"; sleep 5; done
+          for i in $(seq 1 30); do docker compose exec -T laravel-api php artisan migrate:fresh --seed --force && exit 0; echo "Database not ready ($i)"; sleep 5; done
+          exit 1
 
-      - name: Diagnose the API
+      - name: Wait for the API and the web shop
         working-directory: toolshop
         run: |
-          docker compose -f docker-compose.prod.yml ps
-          echo "--- /status"; curl -s -o - -w "\nHTTP %{http_code}\n" http://localhost:8091/status | tail -c 600
-          echo "--- /products"; curl -s -o - -w "\nHTTP %{http_code}\n" "http://localhost:8091/products?page=1" | tail -c 600
-          echo "--- web logs"; docker compose -f docker-compose.prod.yml logs --tail 30 web
-          echo "--- api logs"; docker compose -f docker-compose.prod.yml logs --tail 30 laravel-api
-          docker compose -f docker-compose.prod.yml exec -T laravel-api sh -c 'ls -la /var/www | head -20; tail -30 /var/www/storage/logs/laravel.log 2>/dev/null' || true
-
-      - name: Wait for the web shop
-        run: |
-          for i in $(seq 1 90); do curl -sf -o /dev/null http://localhost:4200 && echo "Shop is up" && exit 0; echo "Shop not ready ($i)"; sleep 5; done
+          api=no; shop=no
+          for i in $(seq 1 90); do
+            curl -sf -o /dev/null "http://localhost:8091/products?page=1" && api=yes
+            curl -sf -o /dev/null http://localhost:4200 && shop=yes
+            [ "$api" = yes ] && [ "$shop" = yes ] && echo "API and shop are up" && exit 0
+            echo "Waiting ($i): API $api, shop $shop"; sleep 5
+          done
+          docker compose ps; docker compose logs --tail 40 web laravel-api
           exit 1
 
       - uses: actions/setup-node@v7
@@ -82,4 +85,4 @@ jobs:
       - name: Show the Toolshop logs if something failed
         if: ${{ failure() }}
         working-directory: toolshop
-        run: docker compose -f docker-compose.prod.yml logs --tail 60
+        run: docker compose logs --tail 60

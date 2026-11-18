@@ -1,0 +1,13 @@
+# Changes to the official Toolshop compose file (docker-compose.prod.yml) for GitHub's Linux machines.
+# The ready-made "web" and "cron" images of the project do not start on these machines ("exec format error":
+# they were built for another kind of processor). The web server is only nginx with the project's own settings,
+# so it is rebuilt here from the official nginx image and the project's vhost.conf. The cron service is not needed
+# for the tests and is left out.
+services:
+  web:
+    image: nginx:1.23.3-alpine
+    volumes:
+      - ./_docker/vhost.conf:/etc/nginx/conf.d/default.conf:ro
+      - laravel-app-code:/var/www:ro
+  cron:
+    profiles: ["not-needed"]
