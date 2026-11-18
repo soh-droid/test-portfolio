@@ -1,4 +1,6 @@
-# Runs the Cucumber + Selenium tests on every push and pull request, and once by hand from the Actions tab.
+# Runs the Cucumber + Selenium tests on every push and pull request, and by hand from the Actions tab.
+# The public demo site blocks automated traffic from cloud servers, so the workflow starts its own copy of Toolshop
+# with Docker (the official images of the Toolshop project) and tests that copy on http://localhost:4200.
 name: Selenium + Cucumber tests
 
 on:
@@ -7,15 +9,42 @@ on:
   pull_request:
   workflow_dispatch:
 
+env:
+  SPRINT: sprint5            # which version of Toolshop the official compose file starts
+  DISABLE_LOGGING: "true"
+
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: selenium-cucumber
     steps:
       - uses: actions/checkout@v7
+
+      - name: Get the Toolshop compose file (official repository)
+        uses: actions/checkout@v7
+        with:
+          repository: testsmith-io/practice-software-testing
+          path: toolshop
+          sparse-checkout: docker-compose.prod.yml
+          sparse-checkout-cone-mode: false
+
+      - name: Start Toolshop in Docker
+        working-directory: toolshop
+        run: docker compose -f docker-compose.prod.yml up -d --pull missing
+
+      - name: Wait for the API, then fill the database with its demo data
+        working-directory: toolshop
+        run: |
+          for i in $(seq 1 60); do curl -sf http://localhost:8091/status && break; echo "API not ready ($i)"; sleep 5; done
+          docker compose -f docker-compose.prod.yml exec -T laravel-api php artisan migrate:fresh --seed --force
+
+      - name: Wait for the web shop
+        run: |
+          for i in $(seq 1 90); do curl -sf -o /dev/null http://localhost:4200 && echo "Shop is up" && exit 0; echo "Shop not ready ($i)"; sleep 5; done
+          exit 1
 
       - uses: actions/setup-node@v7
         with:
@@ -29,6 +58,8 @@ jobs:
       # Chrome is already installed on GitHub's Ubuntu machines; Selenium Manager fetches the matching driver.
       - name: Run the scenarios (headless Chrome)
         run: npm test
+        env:
+          BASE_URL: http://localhost:4200
 
       # The HTML report (with a screenshot for every failed scenario) can be downloaded from the run page.
       - name: Upload the Cucumber report
@@ -38,3 +69,8 @@ jobs:
           name: cucumber-report
           path: selenium-cucumber/reports/
           retention-days: 14
+
+      - name: Show the Toolshop logs if something failed
+        if: ${{ failure() }}
+        working-directory: toolshop
+        run: docker compose -f docker-compose.prod.yml logs --tail 60
