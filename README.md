@@ -84,7 +84,7 @@ project's official compose file and images, fills the database with the demo dat
 answer, then runs the scenarios against `http://localhost:4200`. Two of the official images do not start on GitHub's
 machines ("exec format error", built for another processor); [ci/toolshop.override.yml](ci/toolshop.override.yml)
 replaces the web server with the official nginx image and the project's own settings, and leaves out the cron service.
-A full run takes about 8 minutes, most of it starting the shop.
+A full run takes about a minute and a half.
 
 ## Tools
 
