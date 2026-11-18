@@ -35,11 +35,20 @@ jobs:
         working-directory: toolshop
         run: docker compose -f docker-compose.prod.yml up -d --pull missing
 
-      - name: Wait for the API, then fill the database with its demo data
+      - name: Fill the database with its demo data
         working-directory: toolshop
         run: |
-          for i in $(seq 1 60); do curl -sf http://localhost:8091/status && break; echo "API not ready ($i)"; sleep 5; done
-          docker compose -f docker-compose.prod.yml exec -T laravel-api php artisan migrate:fresh --seed --force
+          for i in $(seq 1 30); do docker compose -f docker-compose.prod.yml exec -T laravel-api php artisan migrate:fresh --seed --force && break; echo "Database not ready ($i)"; sleep 5; done
+
+      - name: Diagnose the API
+        working-directory: toolshop
+        run: |
+          docker compose -f docker-compose.prod.yml ps
+          echo "--- /status"; curl -s -o - -w "\nHTTP %{http_code}\n" http://localhost:8091/status | tail -c 600
+          echo "--- /products"; curl -s -o - -w "\nHTTP %{http_code}\n" "http://localhost:8091/products?page=1" | tail -c 600
+          echo "--- web logs"; docker compose -f docker-compose.prod.yml logs --tail 30 web
+          echo "--- api logs"; docker compose -f docker-compose.prod.yml logs --tail 30 laravel-api
+          docker compose -f docker-compose.prod.yml exec -T laravel-api sh -c 'ls -la /var/www | head -20; tail -30 /var/www/storage/logs/laravel.log 2>/dev/null' || true
 
       - name: Wait for the web shop
         run: |
