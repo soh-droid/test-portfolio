@@ -42,6 +42,8 @@ selenium-cucumber/
     support/hooks.js        opens and closes the browser, adds a screenshot to the report when a scenario fails
   pages/                    Page Object Model: one class per page of the shop (home, product, cart)
   cucumber.js               where the scenarios are and which reports to write
+ci/toolshop.override.yml    two changes to Toolshop's Docker setup so it runs on GitHub's machines
+.github/workflows/          the GitHub Actions workflow
 ```
 
 Choices worth knowing:
@@ -75,6 +77,14 @@ The report is written to `selenium-cucumber/reports/cucumber-report.html`.
 
 [GitHub Actions](.github/workflows/selenium-cucumber.yml) runs the scenarios on every push and pull request
 (Ubuntu, Node.js 24, headless Chrome) and keeps the HTML report as a downloadable artifact for 14 days.
+
+The public demo site protects itself against bots, and it blocks traffic from cloud servers such as GitHub's. So the
+workflow does not test the public site: it **starts its own copy of Toolshop with Docker** on the runner, from the
+project's official compose file and images, fills the database with the demo data, waits until the API and the shop
+answer, then runs the scenarios against `http://localhost:4200`. Two of the official images do not start on GitHub's
+machines ("exec format error", built for another processor); [ci/toolshop.override.yml](ci/toolshop.override.yml)
+replaces the web server with the official nginx image and the project's own settings, and leaves out the cron service.
+A full run takes about 8 minutes, most of it starting the shop.
 
 ## Tools
 
